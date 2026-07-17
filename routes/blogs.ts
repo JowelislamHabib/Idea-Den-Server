@@ -8,6 +8,57 @@ const router = Router();
 const rateLimitMap = new Map<string, number>();
 const COOLDOWN_MS = 15_000;
 
+router.get("/", async (req: Request, res: Response) => {
+  try {
+    const {
+      page = "1",
+      limit = "12",
+      q,
+      sort = "newest",
+    } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string) || 12));
+    const skip = (pageNum - 1) * limitNum;
+
+    const filter: Record<string, unknown> = {};
+
+    if (q && typeof q === "string") {
+      filter.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { topic: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sortOption: any =
+      sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
+
+    const [blogs, total] = await Promise.all([
+      blogsCollection
+        .find(filter)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum)
+        .toArray(),
+      blogsCollection.countDocuments(filter),
+    ]);
+
+    res.json({
+      blogs,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error("Error listing blogs:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.post("/generate", async (req: Request, res: Response) => {
   try {
     const { topic, template, tone, length, keywords, additionalInstructions, regenerateId, userId, userName, userEmail } = req.body;
