@@ -200,6 +200,48 @@ router.get("/mine", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/quota", async (req: Request, res: Response) => {
+  try {
+    const userId = req.query.userId as string;
+    if (!userId) {
+      res.status(400).json({ error: "userId is required" });
+      return;
+    }
+
+    let isPro = false;
+    try {
+      const { usersCollection } = await import("../config/db");
+      const { ObjectId } = await import("mongodb");
+      let user;
+      if (ObjectId.isValid(userId)) {
+        user = await usersCollection.findOne({
+          $or: [{ _id: new ObjectId(userId) }, { id: userId }],
+        });
+      } else {
+        user = await usersCollection.findOne({ id: userId });
+      }
+      if (user?.role === "pro") {
+        isPro = true;
+      }
+    } catch (err) {
+      console.error("Error fetching user for quota:", err);
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const count = await blogsCollection.countDocuments({ 
+      ownerId: userId,
+      createdAt: { $gte: startOfDay }
+    });
+
+    res.json({ count, limit: 3, isPro });
+  } catch (error) {
+    console.error("Error fetching quota:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
