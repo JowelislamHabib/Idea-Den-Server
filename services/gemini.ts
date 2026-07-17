@@ -49,7 +49,7 @@ function buildPrompt(input: BlueprintInput): string {
     ? `\n\nCRITICAL: Do NOT generate an idea similar to any of these previously generated ideas: ${input.previousIdeas.join(", ")}. Provide a completely UNIQUE and NOVEL idea.`
     : "";
 
-  return `You are Forge, an expert Product Manager and Ideation Engine. Generate a novel project idea and a Product Requirements Document (PRD) based on the following constraints.
+  return `You are Idea AI, an expert Product Manager and Ideation Engine. Generate a novel project idea and a Product Requirements Document (PRD) based on the following constraints.
 
 Interests/Industry: ${input.interests}
 Time Available: ${input.timeAvailable}

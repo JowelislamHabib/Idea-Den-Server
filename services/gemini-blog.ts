@@ -32,7 +32,7 @@ function buildPrompt(input: BlogInput): string {
     ? `\n\nCRITICAL: The user has regenerated this blog. Do NOT generate the same content as before. Provide a fresh take on the topic.`
     : "";
 
-  return `You are Forge, an expert AI Copywriter and Content Strategist. Generate a high-quality blog article based on the following constraints.
+  return `You are Idea AI, an expert AI Copywriter and Content Strategist. Generate a high-quality blog article based on the following constraints.
 
 Topic: ${input.topic}
 Format/Template: ${input.template}
