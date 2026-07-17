@@ -50,6 +50,7 @@ Rules:
 - Generate ONLY the JSON object. No markdown wrapping the JSON, no explanation.
 - The 'content' field MUST contain Markdown formatting.
 - CRITICAL: You MUST use double line breaks (\\n\\n) to separate paragraphs. Do not use single line breaks.
+- CRITICAL: Do NOT include the main title as an H1 (# ) at the beginning of the content. The title is displayed separately. Start directly with the introduction or an H2 (##).
 - Ensure the article feels human-written, engaging, and highly readable.
 - If keywords are provided, seamlessly integrate them into the content.`;
 }
