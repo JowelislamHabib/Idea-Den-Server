@@ -4,6 +4,7 @@ import { db } from "./config/db";
 import ideasRouter from "./routes/ideas";
 import usersRouter from "./routes/users";
 import generateRouter from "./routes/generate";
+import blogsRouter from "./routes/blogs";
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -27,6 +28,7 @@ app.get("/", (_req, res) => {
 app.use("/api/ideas", generateRouter);
 app.use("/api/ideas", ideasRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/blogs", blogsRouter);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(port, () => {

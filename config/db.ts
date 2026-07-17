@@ -14,6 +14,7 @@ const client = new MongoClient(uri, {
 const db = client.db("IdeaDen");
 
 export const ideasCollection = db.collection("ideas");
+export const blogsCollection = db.collection("blogs");
 export const usersCollection = db.collection("user");
 
 export { client, db };
