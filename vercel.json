@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npx esbuild index.ts --bundle --platform=node --outfile=api/index.js --external:express --external:cors --external:mongodb --external:dotenv",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+}

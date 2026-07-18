@@ -149,7 +149,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
-    let related = [];
+    let related: any[] = [];
     if (idea.techStack && Array.isArray(idea.techStack) && idea.techStack.length > 0) {
       // Create case-insensitive regex for better matching
       const techRegexes = idea.techStack.map(
