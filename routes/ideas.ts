@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
 import { ideasCollection } from "../config/db";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = Router();
 
@@ -71,11 +72,11 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/mine", async (req: Request, res: Response) => {
+router.get("/mine", verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).user.sub;
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
@@ -91,32 +92,16 @@ router.get("/mine", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/quota", async (req: Request, res: Response) => {
+router.get("/quota", verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).user.sub;
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
-    let isPro = false;
-    try {
-      const { usersCollection } = await import("../config/db");
-      const { ObjectId } = await import("mongodb");
-      let user;
-      if (ObjectId.isValid(userId)) {
-        user = await usersCollection.findOne({
-          $or: [{ _id: new ObjectId(userId) }, { id: userId }],
-        });
-      } else {
-        user = await usersCollection.findOne({ id: userId });
-      }
-      if (user?.role === "pro") {
-        isPro = true;
-      }
-    } catch (err) {
-      console.error("Error fetching user for quota:", err);
-    }
+    const userRole = (req as any).user.role || "free";
+    const isPro = userRole === "pro";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -185,10 +170,10 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", verifyToken, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { userId } = req.body;
+    const userId = (req as any).user.sub;
 
     if (!ObjectId.isValid(id)) {
       res.status(400).json({ error: "Invalid ID format" });

@@ -1,20 +1,20 @@
 import { Router, type Request, type Response } from "express";
 import { generateBlueprint, type BlueprintInput } from "../services/gemini";
 import { ideasCollection } from "../config/db";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = Router();
 
 const rateLimitMap = new Map<string, number>();
 const COOLDOWN_MS = 15_000;
 
-router.post("/generate", async (req: Request, res: Response) => {
+router.post("/generate", verifyToken, async (req: Request, res: Response) => {
   try {
-    const { interests, timeAvailable, techStack, userId, userName, userEmail } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: "userId is required" });
-      return;
-    }
+    const user = (req as any).user;
+    const userId = user.sub;
+    const interests = req.body.interests;
+    const timeAvailable = req.body.timeAvailable;
+    const techStack = req.body.techStack;
 
     if (!interests || typeof interests !== "string" || interests.trim().length === 0) {
       res.status(400).json({ error: "Interests or Industry is required" });
@@ -48,29 +48,35 @@ router.post("/generate", async (req: Request, res: Response) => {
     rateLimitMap.set(userId.toString(), now);
 
     let userRole = "free";
+    let userName = "";
+    let userEmail = "";
     let developerPreferences: BlueprintInput["developerPreferences"];
 
     try {
       const { usersCollection } = await import("../config/db");
       const { ObjectId } = await import("mongodb");
 
-      let user;
+      let dbUser;
       if (ObjectId.isValid(userId)) {
-        user = await usersCollection.findOne({
+        dbUser = await usersCollection.findOne({
           $or: [{ _id: new ObjectId(userId) }, { id: userId }],
         });
       } else {
-        user = await usersCollection.findOne({ id: userId });
+        dbUser = await usersCollection.findOne({ id: userId });
       }
 
-      if (user) {
-        userRole = user.role || "free";
-        if (user.developerPreferences) {
-          developerPreferences = user.developerPreferences;
+      if (dbUser) {
+        userRole = dbUser.role || "free";
+        userName = dbUser.name || user.name || "";
+        userEmail = dbUser.email || user.email || "";
+        if (dbUser.developerPreferences) {
+          developerPreferences = dbUser.developerPreferences;
         }
       }
     } catch (err) {
       console.error("Error fetching user for quota check:", err);
+      userName = user.name || "";
+      userEmail = user.email || "";
     }
 
     if (userRole !== "pro") {

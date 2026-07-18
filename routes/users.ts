@@ -1,15 +1,16 @@
 import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
 import { usersCollection } from "../config/db";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = Router();
 
-router.get("/profile", async (req: Request, res: Response) => {
+router.get("/profile", verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).user.sub;
 
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
@@ -37,12 +38,13 @@ router.get("/profile", async (req: Request, res: Response) => {
   }
 });
 
-router.put("/profile", async (req: Request, res: Response) => {
+router.put("/profile", verifyToken, async (req: Request, res: Response) => {
   try {
-    const { userId, name, developerPreferences } = req.body;
+    const userId = (req as any).user.sub;
+    const { name, developerPreferences } = req.body;
 
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 

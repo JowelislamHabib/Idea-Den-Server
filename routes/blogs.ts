@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
 import { blogsCollection } from "../config/db";
 import { generateBlog, type BlogInput } from "../services/gemini-blog";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = Router();
 
@@ -64,14 +65,11 @@ router.get("/", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/generate", async (req: Request, res: Response) => {
+router.post("/generate", verifyToken, async (req: Request, res: Response) => {
   try {
-    const { topic, template, tone, length, keywords, additionalInstructions, regenerateId, userId, userName, userEmail } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: "userId is required" });
-      return;
-    }
+    const user = (req as any).user;
+    const userId = user.sub;
+    const { topic, template, tone, length, keywords, additionalInstructions, regenerateId } = req.body;
 
     if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
       res.status(400).json({ error: "Topic is required" });
@@ -91,19 +89,28 @@ router.post("/generate", async (req: Request, res: Response) => {
     rateLimitMap.set(userId.toString(), now);
 
     let userRole = "free";
+    let userName = "";
+    let userEmail = "";
     try {
       const { usersCollection } = await import("../config/db");
-      let user;
-      if (ObjectId.isValid(userId)) {
-        user = await usersCollection.findOne({
-          $or: [{ _id: new ObjectId(userId) }, { id: userId }],
+      const { ObjectId: OId } = await import("mongodb");
+      let dbUser;
+      if (OId.isValid(userId)) {
+        dbUser = await usersCollection.findOne({
+          $or: [{ _id: new OId(userId) }, { id: userId }],
         });
       } else {
-        user = await usersCollection.findOne({ id: userId });
+        dbUser = await usersCollection.findOne({ id: userId });
       }
-      if (user) userRole = user.role || "free";
+      if (dbUser) {
+        userRole = dbUser.role || "free";
+        userName = dbUser.name || user.name || "";
+        userEmail = dbUser.email || user.email || "";
+      }
     } catch (err) {
       console.error("Error fetching user for quota check:", err);
+      userName = user.name || "";
+      userEmail = user.email || "";
     }
 
     if (userRole !== "pro") {
@@ -115,7 +122,6 @@ router.post("/generate", async (req: Request, res: Response) => {
         createdAt: { $gte: startOfDay }
       });
 
-      // Same 3 limits for free users
       if (todayCount >= 3) {
         res.status(403).json({ 
           error: "You have reached your free limit of 3 generated blogs per day. Upgrade to Pro for unlimited generation." 
@@ -157,7 +163,6 @@ router.post("/generate", async (req: Request, res: Response) => {
     };
 
     if (regenerateId && ObjectId.isValid(regenerateId)) {
-      // Overwrite existing blog if regenerating
       await blogsCollection.updateOne(
         { _id: new ObjectId(regenerateId), ownerId: userId.toString() },
         { $set: { 
@@ -185,11 +190,11 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/mine", async (req: Request, res: Response) => {
+router.get("/mine", verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).user.sub;
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
@@ -205,32 +210,16 @@ router.get("/mine", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/quota", async (req: Request, res: Response) => {
+router.get("/quota", verifyToken, async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).user.sub;
     if (!userId) {
-      res.status(400).json({ error: "userId is required" });
+      res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
-    let isPro = false;
-    try {
-      const { usersCollection } = await import("../config/db");
-      const { ObjectId } = await import("mongodb");
-      let user;
-      if (ObjectId.isValid(userId)) {
-        user = await usersCollection.findOne({
-          $or: [{ _id: new ObjectId(userId) }, { id: userId }],
-        });
-      } else {
-        user = await usersCollection.findOne({ id: userId });
-      }
-      if (user?.role === "pro") {
-        isPro = true;
-      }
-    } catch (err) {
-      console.error("Error fetching user for quota:", err);
-    }
+    const userRole = (req as any).user.role || "free";
+    const isPro = userRole === "pro";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -270,10 +259,10 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", verifyToken, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { userId } = req.body;
+    const userId = (req as any).user.sub;
 
     if (!ObjectId.isValid(id)) {
       res.status(400).json({ error: "Invalid ID format" });
