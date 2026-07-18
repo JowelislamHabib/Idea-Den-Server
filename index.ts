@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { db } from "./config/db";
+import { ensureConnected } from "./config/db";
 import ideasRouter from "./routes/ideas";
 import usersRouter from "./routes/users";
 import generateRouter from "./routes/generate";
@@ -17,9 +17,15 @@ app.use(
 );
 app.use(express.json());
 
-db.command({ ping: 1 })
-  .then(() => console.log("MongoDB connected"))
-  .catch(console.error);
+// Ensure MongoDB is connected before handling requests
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureConnected();
+  } catch {
+    // will retry on next request
+  }
+  next();
+});
 
 app.get("/", (_req, res) => {
   res.json({ status: "ok", service: "IdeaDen API" });

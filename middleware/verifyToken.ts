@@ -1,11 +1,20 @@
 import { type Request, type Response, type NextFunction } from "express";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 
-const JWKS = createRemoteJWKSet(
-  new URL(
-    `${process.env.CLIENT_URL || "http://localhost:3000"}/api/auth/jwks`,
-  ),
-);
+let JWKS: Awaited<ReturnType<typeof createJWKS>> | null = null;
+
+async function createJWKS() {
+  const { createRemoteJWKSet } = await import("jose");
+  return createRemoteJWKSet(
+    new URL(
+      `${process.env.CLIENT_URL || "http://localhost:3000"}/api/auth/jwks`,
+    ),
+  );
+}
+
+async function getJWKS() {
+  if (!JWKS) JWKS = await createJWKS();
+  return JWKS;
+}
 
 export interface JwtPayload {
   sub: string;
@@ -33,7 +42,8 @@ export const verifyToken = async (
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWKS);
+    const { jwtVerify } = await import("jose");
+    const { payload } = await jwtVerify(token, await getJWKS());
     (req as any).user = payload;
     next();
   } catch {
