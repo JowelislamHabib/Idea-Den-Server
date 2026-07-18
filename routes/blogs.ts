@@ -14,6 +14,7 @@ router.get("/", async (req: Request, res: Response) => {
       page = "1",
       limit = "12",
       q,
+      template,
       sort = "newest",
     } = req.query;
 
@@ -28,6 +29,10 @@ router.get("/", async (req: Request, res: Response) => {
         { title: { $regex: q, $options: "i" } },
         { topic: { $regex: q, $options: "i" } },
       ];
+    }
+
+    if (template && typeof template === "string" && template !== "all") {
+      filter.template = template;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

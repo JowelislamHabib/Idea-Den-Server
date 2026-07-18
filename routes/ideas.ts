@@ -11,6 +11,7 @@ router.get("/", async (req: Request, res: Response) => {
       limit = "12",
       q,
       difficulty,
+      estimatedDuration,
       sort = "newest",
     } = req.query;
 
@@ -25,6 +26,20 @@ router.get("/", async (req: Request, res: Response) => {
         { projectTitle: { $regex: q, $options: "i" } },
         { elevatorPitch: { $regex: q, $options: "i" } },
       ];
+    }
+
+    if (estimatedDuration && typeof estimatedDuration === "string" && estimatedDuration !== "all") {
+      let regexStr = estimatedDuration;
+      if (estimatedDuration === "1-week") {
+        regexStr = "1[- ]week|one week|7 days";
+      } else if (estimatedDuration === "2-weeks") {
+        regexStr = "2[- ]week|two week|14 days";
+      } else if (estimatedDuration === "1-month") {
+        regexStr = "1[- ]month|one month|4[- ]week";
+      } else if (estimatedDuration === "2-months") {
+        regexStr = "2[- ]month|two month|8[- ]week";
+      }
+      filter.estimatedDuration = { $regex: regexStr, $options: "i" };
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
