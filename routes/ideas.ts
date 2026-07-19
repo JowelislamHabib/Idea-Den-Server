@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
 import { ideasCollection } from "../config/db";
 import { verifyToken } from "../middleware/verifyToken";
+import { generateRandomIdeaPrompt } from "../services/gemini";
 
 const router = Router();
 
@@ -114,6 +115,16 @@ router.get("/quota", verifyToken, async (req: Request, res: Response) => {
     res.json({ count, limit: 3, isPro });
   } catch (error) {
     console.error("Error fetching quota:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/random", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const idea = await generateRandomIdeaPrompt();
+    res.json({ idea });
+  } catch (error) {
+    console.error("Error generating random idea:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -166,3 +166,50 @@ export async function generateBlueprint(
     throw new Error("The AI is currently overloaded or unavailable. Please wait a moment and try again.");
   }
 }
+
+export async function generateRandomIdeaPrompt(): Promise<string> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
+    
+    const prompt = `You are an expert brainstorming assistant. Generate exactly one highly creative, realistic, and specific software project idea (e.g., a web app, SaaS, mobile app, or dev tool). Avoid hardware, sci-fi, or highly unrealistic concepts. It should be a 1-sentence phrase suitable for a text input field, such as "A habit tracker with RPG elements" or "A Kanban board for meal planning". DO NOT include any markdown, quotes, or JSON. Just the raw text phrase. KEEP IT UNDER 10 WORDS.`;
+
+    const apiResponse = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt }]
+        }],
+        generationConfig: {
+          responseMimeType: "text/plain",
+          temperature: 0.9,
+          maxOutputTokens: 50
+        }
+      })
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API returned ${apiResponse.status}`);
+    }
+
+    const data = await apiResponse.json();
+    const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!textResponse) {
+      throw new Error("Invalid response format from Gemini API");
+    }
+
+    return textResponse.trim().replace(/^"|"$/g, '');
+  } catch (error) {
+    console.error("Gemini random idea failed:", error);
+    throw new Error("Failed to generate random idea");
+  }
+}
+
