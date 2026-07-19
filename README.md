@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://ideaden.vercel.app/ideaden-white.png" alt="IdeaDen Logo" width="200" />
+  <img src="https://ideaden.vercel.app/ideaden-color.png" alt="IdeaDen Logo" width="400" />
 </p>
 
 <p align="center">
