@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
 import { blogsCollection } from "../config/db";
-import { generateBlog, type BlogInput } from "../services/gemini-blog";
+import { generateBlog, generateRandomBlogTopicPrompt, type BlogInput } from "../services/gemini-blog";
 import { verifyToken } from "../middleware/verifyToken";
 
 const router = Router();
@@ -232,6 +232,16 @@ router.get("/quota", verifyToken, async (req: Request, res: Response) => {
     res.json({ count, limit: 3, isPro });
   } catch (error) {
     console.error("Error fetching quota:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/random", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const topic = await generateRandomBlogTopicPrompt();
+    res.json({ topic });
+  } catch (error) {
+    console.error("Error generating random blog topic:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
