@@ -23,7 +23,7 @@ router.get("/", async (req: Request, res: Response) => {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit as string) || 12));
     const skip = (pageNum - 1) * limitNum;
 
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { visibility: "public" };
 
     if (q && typeof q === "string") {
       filter.$or = [
@@ -70,6 +70,10 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
     const user = (req as any).user;
     const userId = user.sub;
     const { topic, template, tone, length, keywords, additionalInstructions, regenerateId } = req.body;
+    let visibility = req.body.visibility;
+    if (visibility !== "public" && visibility !== "private") {
+      visibility = "public";
+    }
 
     if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
       res.status(400).json({ error: "Topic is required" });
@@ -114,6 +118,7 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
     }
 
     if (userRole !== "pro") {
+      visibility = "public";
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
 
@@ -158,6 +163,7 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
       tone: tone || "Professional",
       length: length || "Medium",
       keywords: keywords || [],
+      visibility,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -260,6 +266,28 @@ router.get("/:id", async (req: Request, res: Response) => {
     if (!blog) {
       res.status(404).json({ error: "Blog not found" });
       return;
+    }
+
+    if (blog.visibility === "private") {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) {
+        res.status(404).json({ error: "Blog not found" });
+        return;
+      }
+      try {
+        const { jwtVerify, createRemoteJWKSet } = await import("jose");
+        const JWKS = createRemoteJWKSet(
+          new URL(`${process.env.CLIENT_URL || "http://localhost:3000"}/api/auth/jwks`)
+        );
+        const { payload } = await jwtVerify(authHeader.split(" ")[1], JWKS);
+        if (payload.sub?.toString() !== blog.ownerId?.toString()) {
+          res.status(404).json({ error: "Blog not found" });
+          return;
+        }
+      } catch {
+        res.status(404).json({ error: "Blog not found" });
+        return;
+      }
     }
 
     res.json({ blog });
