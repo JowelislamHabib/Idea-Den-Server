@@ -21,7 +21,7 @@ router.get("/", async (req: Request, res: Response) => {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit as string) || 12));
     const skip = (pageNum - 1) * limitNum;
 
-    const filter: Record<string, unknown> = { visibility: "public" };
+    const filter: Record<string, unknown> = { visibility: { $ne: "private" } };
 
     if (q && typeof q === "string") {
       filter.$or = [
@@ -177,7 +177,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       related = await ideasCollection
         .find({
           _id: { $ne: new ObjectId(id) },
-          visibility: "public",
+          visibility: { $ne: "private" },
           techStack: { $in: techRegexes }
         })
         .limit(3)
@@ -189,7 +189,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       const backfill = await ideasCollection
         .find({
           _id: { $nin: existingIds },
-          visibility: "public"
+          visibility: { $ne: "private" }
         })
         .limit(3 - related.length)
         .toArray();

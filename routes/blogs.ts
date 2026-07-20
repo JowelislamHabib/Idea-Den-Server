@@ -23,7 +23,7 @@ router.get("/", async (req: Request, res: Response) => {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit as string) || 12));
     const skip = (pageNum - 1) * limitNum;
 
-    const filter: Record<string, unknown> = { visibility: "public" };
+    const filter: Record<string, unknown> = { visibility: { $ne: "private" } };
 
     if (q && typeof q === "string") {
       filter.$or = [
