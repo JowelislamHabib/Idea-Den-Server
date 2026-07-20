@@ -16,6 +16,11 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
     const timeAvailable = req.body.timeAvailable;
     const techStack = req.body.techStack;
 
+    let visibility = req.body.visibility;
+    if (visibility !== "public" && visibility !== "private") {
+      visibility = "public";
+    }
+
     if (!interests || typeof interests !== "string" || interests.trim().length === 0) {
       res.status(400).json({ error: "Interests or Industry is required" });
       return;
@@ -80,6 +85,7 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
     }
 
     if (userRole !== "pro") {
+      visibility = "public";
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
 
@@ -125,7 +131,7 @@ router.post("/generate", verifyToken, async (req: Request, res: Response) => {
       ownerId: userId.toString(),
       ownerName: userName || "Anonymous",
       ownerEmail: userEmail || "",
-      visibility: "public",
+      visibility,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

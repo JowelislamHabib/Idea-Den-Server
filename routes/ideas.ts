@@ -145,6 +145,28 @@ router.get("/:id", async (req: Request, res: Response) => {
       return;
     }
 
+    if (idea.visibility === "private") {
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) {
+        res.status(404).json({ error: "Blueprint not found" });
+        return;
+      }
+      try {
+        const { jwtVerify, createRemoteJWKSet } = await import("jose");
+        const JWKS = createRemoteJWKSet(
+          new URL(`${process.env.CLIENT_URL || "http://localhost:3000"}/api/auth/jwks`)
+        );
+        const { payload } = await jwtVerify(authHeader.split(" ")[1], JWKS);
+        if (payload.sub?.toString() !== idea.ownerId?.toString()) {
+          res.status(404).json({ error: "Blueprint not found" });
+          return;
+        }
+      } catch {
+        res.status(404).json({ error: "Blueprint not found" });
+        return;
+      }
+    }
+
     let related: any[] = [];
     if (idea.techStack && Array.isArray(idea.techStack) && idea.techStack.length > 0) {
       // Create case-insensitive regex for better matching
