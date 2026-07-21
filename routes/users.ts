@@ -140,7 +140,8 @@ router.post("/upgrade", verifyToken, async (req: Request, res: Response) => {
     if (subscriptionId) {
       try {
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        const end = (subscription as any).items?.data?.[0]?.current_period_end ?? (subscription as any).current_period_end;
+        currentPeriodEnd = end ? new Date(end * 1000) : null;
       } catch (err) {
         console.error("Failed to fetch subscription from Stripe:", err);
       }

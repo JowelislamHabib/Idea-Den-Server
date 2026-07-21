@@ -4,6 +4,10 @@ import Stripe from "stripe";
 import { usersCollection } from "../config/db";
 import { verifyToken } from "../middleware/verifyToken";
 
+function getPeriodEnd(sub: Stripe.Subscription): number | undefined {
+  return (sub as any).items?.data?.[0]?.current_period_end ?? (sub as any).current_period_end;
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2026-06-24.dahlia",
 });
@@ -43,7 +47,8 @@ export async function handleWebhook(req: Request, res: Response) {
 
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-          currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+          const end = getPeriodEnd(subscription);
+          if (end) currentPeriodEnd = new Date(end * 1000);
         }
 
         await usersCollection.updateOne(
@@ -68,7 +73,8 @@ export async function handleWebhook(req: Request, res: Response) {
         if (!subscriptionId) break;
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        const end = getPeriodEnd(subscription);
+        const currentPeriodEnd = end ? new Date(end * 1000) : null;
 
         await usersCollection.updateOne(
           { stripeSubscriptionId: subscriptionId },
@@ -84,7 +90,8 @@ export async function handleWebhook(req: Request, res: Response) {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        const end = getPeriodEnd(subscription);
+        const currentPeriodEnd = end ? new Date(end * 1000) : null;
         const status = subscription.status === "active" ? "active" : subscription.status === "past_due" ? "past_due" : subscription.status === "canceled" ? "canceled" : "incomplete";
 
         await usersCollection.updateOne(
@@ -191,7 +198,8 @@ router.post("/cancel", verifyToken, async (req: Request, res: Response) => {
     });
 
     const updated = await stripe.subscriptions.retrieve(subscriptionId);
-    const currentPeriodEnd = new Date(updated.current_period_end * 1000);
+    const end = getPeriodEnd(updated);
+    const currentPeriodEnd = end ? new Date(end * 1000) : null;
 
     await usersCollection.updateOne(query, {
       $set: {
