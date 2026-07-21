@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from "express";
+import { ObjectId } from "mongodb";
 import Stripe from "stripe";
 import { usersCollection } from "../config/db";
+import { verifyToken } from "../middleware/verifyToken";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2026-06-24.dahlia",
@@ -136,5 +138,42 @@ export async function handleWebhook(req: Request, res: Response) {
     res.status(500).json({ error: "Webhook handler failed" });
   }
 }
+
+router.post("/cancel", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.sub;
+
+    const query = ObjectId.isValid(userId)
+      ? { $or: [{ _id: new ObjectId(userId) }, { id: userId }] }
+      : { id: userId };
+
+    const user = await usersCollection.findOne(query);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const subscriptionId = user.stripeSubscriptionId;
+    if (!subscriptionId) {
+      res.status(400).json({ error: "No active subscription" });
+      return;
+    }
+
+    await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    await usersCollection.updateOne(query, {
+      $set: {
+        subscriptionStatus: "cancel_at_period_end",
+      },
+    });
+
+    res.json({ success: true, message: "Subscription will cancel at period end" });
+  } catch (error) {
+    console.error("Error canceling subscription:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 export default router;
