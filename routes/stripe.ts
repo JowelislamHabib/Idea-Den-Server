@@ -68,7 +68,7 @@ export async function handleWebhook(req: Request, res: Response) {
       }
 
       case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice;
+        const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
         if (!subscriptionId) break;
 
@@ -123,7 +123,7 @@ export async function handleWebhook(req: Request, res: Response) {
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
+        const invoice = event.data.object as any;
         const subscriptionId = invoice.subscription as string;
         if (!subscriptionId) break;
 
