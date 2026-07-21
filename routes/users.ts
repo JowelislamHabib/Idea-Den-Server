@@ -121,4 +121,36 @@ router.put("/profile", verifyToken, async (req: Request, res: Response) => {
   }
 });
 
+router.post("/upgrade", verifyToken, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.sub;
+    const { sessionId, subscriptionId, customerId } = req.body;
+
+    if (!sessionId) {
+      res.status(400).json({ error: "Missing sessionId" });
+      return;
+    }
+
+    const query = ObjectId.isValid(userId)
+      ? { $or: [{ _id: new ObjectId(userId) }, { id: userId }] }
+      : { id: userId };
+
+    await usersCollection.updateOne(query, {
+      $set: {
+        role: "pro",
+        stripeCustomerId: customerId || null,
+        stripeSubscriptionId: subscriptionId || null,
+        subscriptionStatus: "active",
+        currentPeriodEnd: null,
+        upgradedAt: new Date(),
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error upgrading user:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;

@@ -5,7 +5,6 @@ import ideasRouter from "./routes/ideas";
 import usersRouter from "./routes/users";
 import generateRouter from "./routes/generate";
 import blogsRouter from "./routes/blogs";
-
 const app = express();
 const port = process.env.PORT || 8000;
 
