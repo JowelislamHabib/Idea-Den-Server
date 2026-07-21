@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
-import { blogsCollection } from "../config/db";
+import { blogsCollection, usersCollection } from "../config/db";
 import { generateBlog, generateRandomBlogTopicPrompt, type BlogInput } from "../services/gemini-blog";
 import { verifyToken } from "../middleware/verifyToken";
 
@@ -224,8 +224,19 @@ router.get("/quota", verifyToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const userRole = (req as any).user.role || "free";
-    const isPro = userRole === "pro";
+    let user;
+    if (ObjectId.isValid(userId)) {
+      user = await usersCollection.findOne(
+        { $or: [{ _id: new ObjectId(userId) }, { id: userId }] },
+        { projection: { role: 1 } }
+      );
+    } else {
+      user = await usersCollection.findOne(
+        { id: userId },
+        { projection: { role: 1 } }
+      );
+    }
+    const isPro = user?.role === "pro";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
