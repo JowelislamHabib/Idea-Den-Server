@@ -143,6 +143,11 @@ router.post("/cancel", verifyToken, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.sub;
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      res.status(500).json({ error: "Stripe not configured on server" });
+      return;
+    }
+
     const query = ObjectId.isValid(userId)
       ? { $or: [{ _id: new ObjectId(userId) }, { id: userId }] }
       : { id: userId };
@@ -153,9 +158,31 @@ router.post("/cancel", verifyToken, async (req: Request, res: Response) => {
       return;
     }
 
-    const subscriptionId = user.stripeSubscriptionId;
+    let subscriptionId = user.stripeSubscriptionId;
+
+    if (!subscriptionId && user.stripeCustomerId) {
+      const subs = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: "all",
+        limit: 10,
+      });
+      const active = subs.data.find(s => s.status === "active" || s.status === "past_due" || s.status === "trialing");
+      if (active) {
+        subscriptionId = active.id;
+        await usersCollection.updateOne(query, {
+          $set: {
+            stripeSubscriptionId: subscriptionId,
+            stripeCustomerId: user.stripeCustomerId,
+          },
+        });
+      }
+    }
+
     if (!subscriptionId) {
-      res.status(400).json({ error: "No active subscription" });
+      const msg = user.stripeCustomerId
+        ? "No active subscription found in Stripe"
+        : "No subscription linked to your account. Contact support.";
+      res.status(400).json({ error: msg });
       return;
     }
 
@@ -163,13 +190,17 @@ router.post("/cancel", verifyToken, async (req: Request, res: Response) => {
       cancel_at_period_end: true,
     });
 
+    const updated = await stripe.subscriptions.retrieve(subscriptionId);
+    const currentPeriodEnd = new Date(updated.current_period_end * 1000);
+
     await usersCollection.updateOne(query, {
       $set: {
         subscriptionStatus: "cancel_at_period_end",
+        currentPeriodEnd,
       },
     });
 
-    res.json({ success: true, message: "Subscription will cancel at period end" });
+    res.json({ success: true, message: "Subscription will cancel at end of billing period" });
   } catch (error) {
     console.error("Error canceling subscription:", error);
     res.status(500).json({ error: "Internal server error" });
