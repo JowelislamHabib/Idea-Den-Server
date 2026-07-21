@@ -5,6 +5,7 @@ import ideasRouter from "./routes/ideas";
 import usersRouter from "./routes/users";
 import generateRouter from "./routes/generate";
 import blogsRouter from "./routes/blogs";
+import stripeRouter, { handleWebhook } from "./routes/stripe";
 const app = express();
 const port = process.env.PORT || 8000;
 
@@ -14,6 +15,8 @@ app.use(
     origin: [process.env.CLIENT_URL || "http://localhost:3000"],
   }),
 );
+
+app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), handleWebhook);
 app.use(express.json());
 
 // Ensure MongoDB is connected before handling requests
@@ -79,6 +82,7 @@ app.use("/api/ideas", generateRouter);
 app.use("/api/ideas", ideasRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/blogs", blogsRouter);
+app.use("/api/stripe", stripeRouter);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(port, () => {

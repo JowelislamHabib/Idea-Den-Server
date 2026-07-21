@@ -1,7 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { ObjectId } from "mongodb";
+import Stripe from "stripe";
 import { usersCollection } from "../config/db";
 import { verifyToken } from "../middleware/verifyToken";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+  apiVersion: "2026-06-24.dahlia",
+});
 
 const router = Router();
 
@@ -131,6 +136,16 @@ router.post("/upgrade", verifyToken, async (req: Request, res: Response) => {
       return;
     }
 
+    let currentPeriodEnd: Date | null = null;
+    if (subscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+      } catch (err) {
+        console.error("Failed to fetch subscription from Stripe:", err);
+      }
+    }
+
     const query = ObjectId.isValid(userId)
       ? { $or: [{ _id: new ObjectId(userId) }, { id: userId }] }
       : { id: userId };
@@ -141,7 +156,7 @@ router.post("/upgrade", verifyToken, async (req: Request, res: Response) => {
         stripeCustomerId: customerId || null,
         stripeSubscriptionId: subscriptionId || null,
         subscriptionStatus: "active",
-        currentPeriodEnd: null,
+        currentPeriodEnd,
         upgradedAt: new Date(),
       },
     });
